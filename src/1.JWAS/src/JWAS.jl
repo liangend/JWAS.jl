@@ -46,6 +46,9 @@ include("structure_equation_model/SEM.jl")
 #Latent Traits
 include("Nonlinear/nonlinear.jl")
 
+#Group records
+include("group_records/group_records.jl")
+
 #input
 include("input_data_validation.jl")
 
@@ -113,6 +116,7 @@ export get_correlations,get_heritability
         * Missing phenotypes are allowed in multi-trait analysis with `missing_phenotypes`=true, defaulting to `true`.
         * Catogorical Traits are allowed if `categorical_trait`=true, defaulting to `false`. Phenotypes should be coded as 1,2,3...
         * Censored traits are allowed if the upper bounds are provided in `censored_trait` as an array, and lower bounds are provided as phenotypes.
+        * Group records arer allowed if `group_records` = `true`, and one "group" column is included, and average phenotypes for each group are used as responses.
         * If `constraint`=true, defaulting to `false`, constrain residual covariances between traits to be zeros.
         * If `causal_structure` is provided, e.g., causal_structure = [0.0,0.0,0.0;1.0,0.0,0.0;1.0,0.0,0.0] for
           trait 2 -> trait 1 and trait 3 -> trait 1, phenotypic causal networks will be incorporated using structure equation models.
@@ -146,6 +150,7 @@ function runMCMC(mme::MME,df;
                 constraint                      = false,
                 causal_structure                = false,
                 mega_trait                      = false,
+                group_records                   = false,
                 #Genomic Prediction
                 outputEBV                       = true,
                 output_heritability             = true,  #complete or incomplete genomic data
@@ -295,6 +300,11 @@ function runMCMC(mme::MME,df;
 
     #printout basic MCMC information
     if printout_model_info == true
+    end
+
+    #group records
+    if group_records == true
+        group_records_setup(mme,df)
     end
     ############################################################################
     # MCMC
