@@ -1,14 +1,24 @@
+function MTBayesL!(genotypes,ycorr_array,vare)
+    MTBayesL!(genotypes.mArray,genotypes.mRinvArray,genotypes.mpRinvm,
+            ycorr_array,genotypes.α,genotypes.gammaArray,vare,genotypes.G)
+end
+
+function MTBayesC0!(genotypes,ycorr_array,vare)
+    MTBayesL!(genotypes.mArray,genotypes.mRinvArray,genotypes.mpRinvm,
+            ycorr_array,genotypes.α,[1.0],vare,genotypes.G)
+end
+
 function MTBayesL!(xArray,xRinvArray,xpRinvx,
                    wArray,alphaArray,gammaArray,
                    vare,varEffect)
     invR0    = inv(vare)
     invG0    = inv(varEffect)
     nMarkers = length(xArray)
-    nTraits  = length(alphaArray)
-    Lhs      = zeros(nTraits,nTraits)
-    Rhs      = zeros(nTraits)
-    newα     = zeros(typeof(alphaArray[1][1]),nTraits)
-    oldα     = zeros(typeof(alphaArray[1][1]),nTraits)
+    ntraits  = length(alphaArray)
+    Lhs      = zeros(ntraits,ntraits)
+    Rhs      = zeros(ntraits)
+    newα     = zeros(typeof(alphaArray[1][1]),ntraits)
+    oldα     = zeros(typeof(alphaArray[1][1]),ntraits)
 
 
     function getGi_function(gammaArray)
@@ -20,13 +30,13 @@ function MTBayesL!(xArray,xRinvArray,xpRinvx,
 
     for marker=1:nMarkers
         x, xRinv = xArray[marker], xRinvArray[marker]
-        for trait=1:nTraits #unadjust for locus j
+        for trait=1:ntraits #unadjust for locus j
             oldα[trait] = newα[trait] = alphaArray[trait][marker]
             Rhs[trait]  = dot(xRinv,wArray[trait])+xpRinvx[marker]*oldα[trait]
         end
         Rhs = invR0*Rhs
         Lhs = xpRinvx[marker]*invR0 + getGi(gammaArray,marker,invG0)
-        for trait = 1:nTraits
+        for trait = 1:ntraits
             lhs  = Lhs[trait,trait]
             ilhs = 1/lhs
             rhs  = Rhs[trait] - (Lhs[trait,:]'newα)[1]
@@ -34,40 +44,8 @@ function MTBayesL!(xArray,xRinvArray,xpRinvx,
             alphaArray[trait][marker] = mu + randn()*sqrt(ilhs)
             newα[trait] = alphaArray[trait][marker]
         end
-        for trait = 1:nTraits
+        for trait = 1:ntraits
             BLAS.axpy!(oldα[trait]-newα[trait],x,wArray[trait])
         end
     end
-end
-
-MTBayesC0!(xArray,xRinvArray,xpRinvx,wArray,alphaArray,vare,varEffect) =
-  MTBayesL!(xArray,xRinvArray,xpRinvx,wArray,alphaArray,[1.0],vare,varEffect)
-
-function sampleGammaArray!(gammaArray,alphaArray,mmeMG)
-    Gi = inv(mmeMG)
-    nMarkers = size(gammaArray,1)
-    nTraits  = length(alphaArray[1])==1 ? 1 : length(alphaArray)
-
-    Q  = zeros(nMarkers)
-    nTraits > 1 ? calcMTQ!(Q,nMarkers,nTraits,alphaArray,Gi) : calcSTQ!(Q,nMarkers,alphaArray,Gi)
-    gammaDist = Gamma(0.5,4) # 4 is the scale parameter, which corresponds to a rate parameter of 1/4
-    candidateArray = 1 ./ rand(gammaDist,nMarkers)
-    uniformArray = rand(nMarkers)
-    acceptProbArray = exp.(Q ./4 .*(2 ./ gammaArray - candidateArray))
-    replace = uniformArray .< acceptProbArray
-    gammaArray[replace] = 2 ./ candidateArray[replace]
-end
-
-function calcMTQ!(Q,nMarkers,nTraits,alphaArray,Gi)
-    for locus = 1:nMarkers
-      for traiti = 1:nTraits
-          for traitj = 1:nTraits
-              Q[locus] += alphaArray[traiti][locus]*alphaArray[traitj][locus]*Gi[traiti,traitj]
-          end
-      end
-    end
-end
-
-function calcSTQ!(Q,nMarkers,alphaArray,Gi)
-    Q .= alphaArray.^2 ./Gi
 end

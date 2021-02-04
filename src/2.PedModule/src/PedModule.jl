@@ -5,7 +5,7 @@ using SparseArrays
 using ProgressMeter
 
 export get_pedigree
-export getinfo
+export get_info
 
 """
     get_pedigree(pedfile::AbstractString;header=false,separator=',')
@@ -22,7 +22,7 @@ d,a,c
 function get_pedigree(pedfile::AbstractString;header=false,separator=',',missingstrings=["0"])
     printstyled("The delimiter in ",split(pedfile,['/','\\'])[end]," is \'",separator,"\'.\n",bold=false,color=:green)
 
-    df  = CSV.read(pedfile,types=[String,String,String],
+    df  = CSV.read(pedfile,DataFrame,types=[String,String,String],
                     delim=separator,header=header,missingstrings=missingstrings)
     df[!,1]=strip.(string.(df[!,1]))
     df[!,2]=strip.(string.(df[!,2]))
@@ -40,7 +40,7 @@ function get_pedigree(pedfile::AbstractString;header=false,separator=',',missing
 
     ped.IDs=getIDs(ped)
 
-    getinfo(ped)
+    get_info(ped)
     writedlm("IDs_for_individuals_with_pedigree.txt",ped.IDs)
 
     return ped
@@ -269,13 +269,13 @@ function getInbreeding(ped::Pedigree)
 end
 
 """
-    get_info(pedigree::Pedigree)
+    get_info(pedigree::Pedigree;Ai=false)
 * Print summary informtion from a pedigree object including number of individulas, sires.
   dams and founders. Return individual IDs, inverse of numerator relationship matrix,
-  and inbreeding coefficients.
+  and inbreeding coefficients if **Ai**=`true`.
 
 """
-function getinfo(pedigree::Pedigree;Ai=false)
+function get_info(pedigree::Pedigree;Ai=false)
     println("Pedigree informatin:")
     println("#individuals: ",length(pedigree.idMap))
     sires  = [pednode.sire for pednode in values(pedigree.idMap)]
